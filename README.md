@@ -11,9 +11,9 @@ Early **v0.1** personal-use MVP. Python 3.11+. The web app runs only on loopback
 ```bash
 git clone https://github.com/biggersun/device-deck.git
 cd device-deck
-uv sync --extra dev
-uv run device-deck import examples/inventory.json
-uv run device-deck serve
+uv sync --extra dev --no-editable
+uv run --no-editable device-deck import examples/inventory.json
+uv run --no-editable device-deck serve
 ```
 
 Open **http://127.0.0.1:8765**. The example uses fictional addresses and no secrets. Edit or replace it with your own devices in the UI or import a private JSON file outside the repository.
@@ -43,10 +43,10 @@ Probes cannot execute arbitrary commands. Device controls, automatic pairing, cr
 ## CLI and MCP
 
 ```bash
-uv run device-deck list
-uv run device-deck plan workstation lan
-uv run device-deck probe workstation lan
-uv run device-deck mcp
+uv run --no-editable device-deck list
+uv run --no-editable device-deck plan workstation lan
+uv run --no-editable device-deck probe workstation lan
+uv run --no-editable device-deck mcp
 ```
 
 MCP uses the official Python SDK, with no LLM API or model call required. See [agent configuration examples](docs/agents.md).
@@ -54,8 +54,8 @@ MCP uses the official Python SDK, with no LLM API or model call required. See [a
 ## Development
 
 ```bash
-uv sync --extra dev
-uv run pytest
+uv sync --extra dev --no-editable
+uv run --no-editable pytest
 ```
 
 MIT licensed. Contributions should preserve the distinction between registered facts, observed status, verified identity and unknown values. [Contributing](CONTRIBUTING.md).
