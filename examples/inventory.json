@@ -1,0 +1,25 @@
+{
+  "credentials": [
+    {"id": "workstation-key", "name": "Workstation SSH key", "method": "ssh_key", "key_path": "~/.ssh/id_ed25519_workstation"},
+    {"id": "android-pairing", "name": "Paired Android development device", "method": "adb_pairing"},
+    {"id": "iphone-trust", "name": "Trusted iPhone USB", "method": "ios_trust"},
+    {"id": "iphone-wda", "name": "Existing WDA service", "method": "wda_access"},
+    {"id": "server-password", "name": "Manual server password login", "method": "password", "vault_ref": "external-vault:example-server"}
+  ],
+  "devices": [
+    {"id": "workstation", "name": "Example workstation", "kind": "computer", "expected_hostname": "example-workstation", "endpoints": [
+      {"id": "lan", "network": "lan", "protocol": "ssh", "host": "192.0.2.10", "port": 22, "username": "operator", "credential_id": "workstation-key"},
+      {"id": "tailscale", "network": "tailscale", "protocol": "ssh", "host": "100.64.0.10", "port": 22, "username": "operator", "credential_id": "workstation-key", "host_key_alias": "192.0.2.10"}
+    ]},
+    {"id": "android-demo", "name": "Example Android phone", "kind": "android", "endpoints": [
+      {"id": "usb", "network": "usb", "protocol": "adb", "port": 5037, "serial": "EXAMPLE_ANDROID_SERIAL", "credential_id": "android-pairing", "note": "Replace with the serial shown by adb devices after manual USB authorization."}
+    ]},
+    {"id": "iphone-demo", "name": "Example iPhone", "kind": "ios", "endpoints": [
+      {"id": "usb", "network": "usb", "protocol": "ios_usb", "serial": "00008030-0000000000000000", "credential_id": "iphone-trust", "note": "Example UDID; replace after trusting this computer."},
+      {"id": "wda", "network": "lan", "protocol": "wda", "host": "192.0.2.30", "port": 8100, "credential_id": "iphone-wda", "note": "An existing signed WDA deployment is required."}
+    ]},
+    {"id": "remote-server", "name": "Example password server", "kind": "server", "expected_hostname": "example-server", "endpoints": [
+      {"id": "remote", "network": "remote", "protocol": "ssh", "host": "198.51.100.20", "username": "operator", "credential_id": "server-password"}
+    ]}
+  ]
+}
