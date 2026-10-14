@@ -22,3 +22,8 @@ packages = ["src/device_deck"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.uv]
+# The project is installed non-editable (see README); rebuild it whenever package sources change
+# so `uv run --no-editable` never executes a stale snapshot.
+cache-keys = [{ file = "pyproject.toml" }, { file = "src/**/*.py" }, { file = "src/**/static/*" }]

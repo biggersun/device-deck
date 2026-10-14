@@ -36,6 +36,24 @@ def test_browser_enroll_and_read_shared_registry(tmp_path):
     assert client.get("/assets/unknown").status_code == 404
 
 
+def test_browser_add_never_replaces_existing_device(tmp_path):
+    client = TestClient(create_app(tmp_path), base_url="http://127.0.0.1")
+    inventory = fixture_inventory().model_dump()
+    origin = {"origin": "http://127.0.0.1"}
+    client.post("/api/credentials", json=inventory["credentials"][0], headers=origin)
+    device = inventory["devices"][0]
+    assert client.post("/api/devices", json=device, headers=origin).status_code == 200
+    clash = dict(device, name="Other box")
+    assert client.post("/api/devices", json=clash, headers=origin).status_code == 409
+    assert client.post("/api/credentials", json=inventory["credentials"][0], headers=origin).status_code == 409
+    assert Store(tmp_path).get_device("fixture").name == "Fixture server"
+    assert client.put("/api/devices/fixture", json=clash, headers=origin).status_code == 200
+    assert Store(tmp_path).get_device("fixture").name == "Other box"
+    assert client.put("/api/devices/other", json=clash, headers=origin).status_code == 400
+    assert client.put("/api/devices/missing", json=dict(clash, id="missing"), headers=origin).status_code == 404
+    assert client.put("/api/devices/fixture", json=clash).status_code == 403
+
+
 def test_mcp_tools_and_shared_plan_without_remote_execution(tmp_path):
     Store(tmp_path).import_inventory(fixture_inventory("password"))
     async def exercise():

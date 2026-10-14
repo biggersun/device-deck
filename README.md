@@ -25,7 +25,7 @@ Without `uv`: `python3 -m venv .venv`, activate the virtual environment, then `p
 - Shared SQLite inventory: devices, endpoints, reusable authentication profiles, timestamped observations and local audit events.
 - Web UI: add/edit devices, add authentication references, inspect addresses, connection instructions and collected metrics.
 - CLI: `list`, `get`, `credentials`, `import`, `plan`, `probe`, `events`, `serve`, `mcp`.
-- SSH: fixed read-only macOS/Linux/BusyBox system, memory and filesystem probes; strict host-key checks; existing aliases validated against the registered account/address.
+- SSH: fixed read-only macOS/Linux/BusyBox system, memory and filesystem probes (FreeBSD parsing has fixture coverage only); the probe runs in an explicit remote `/bin/sh`, so fish or csh login shells work; output is size-capped while it streams; strict host-key checks; existing aliases validated against the registered account/address.
 - Android: read-only checks through an explicitly selected, already-authorized ADB serial. USB and wireless connection instructions.
 - iOS: version/model through trusted USB with libimobiledevice, or status of an existing WDA service. Memory/disk values remain unknown where unavailable.
 - Skill instructions and local stdio MCP: list, get, plan and probe.
@@ -57,5 +57,7 @@ MCP uses the official Python SDK, with no LLM API or model call required. See [a
 uv sync --extra dev --no-editable
 uv run --no-editable pytest
 ```
+
+The package is installed non-editable. `[tool.uv] cache-keys` in `pyproject.toml` makes `uv run`/`uv sync` rebuild it whenever `src/` changes; the MCP server and anything calling `.venv/bin/device-deck` directly keep the previous build until one of those commands runs, so run `uv sync --extra dev --no-editable` after pulling or editing and restart your MCP client.
 
 MIT licensed. Contributions should preserve the distinction between registered facts, observed status, verified identity and unknown values. [Contributing](CONTRIBUTING.md).

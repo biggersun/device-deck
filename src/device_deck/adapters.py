@@ -1,29 +1,52 @@
 import json
+import os
 from pathlib import Path
 import re
 import shlex
 import shutil
 import subprocess
+import threading
+import time
 import urllib.request
 
 
-SSH_PROBE = r'''printf '__DD_ID__\n'; uname -n; id -un; uname -s; uname -r
+# Sent on stdin to an explicit remote /bin/sh, so it never depends on the account's login shell
+# (fish, csh/tcsh on pfSense/OPNsense, ...). Keep it POSIX sh.
+SSH_PROBE = r"""os=$(uname -s)
+printf '__DD_ID__\n'; uname -n; id -un; printf '%s\n' "$os"; uname -r
 printf '__DD_VERSION__\n'
-if test "$(uname -s)" = Darwin; then sw_vers; else
-  if test -r /etc/os-release; then awk -F= '/^(PRETTY_NAME|OS_VERSION|VERSION_ID)=/{print}' /etc/os-release; fi
-fi
+case "$os" in
+  Darwin) sw_vers ;;
+  FreeBSD) printf 'FREEBSD_VERSION=%s\n' "$(freebsd-version 2>/dev/null || uname -r)" ;;
+  *) if test -r /etc/os-release; then awk -F= '/^(PRETTY_NAME|OS_VERSION|VERSION_ID)=/{print}' /etc/os-release; fi ;;
+esac
 printf '__DD_MEMORY__\n'
-if test "$(uname -s)" = Darwin; then sysctl -n hw.memsize; vm_stat; else
-  awk '/^(MemTotal|MemAvailable|MemFree|Cached|Buffers|SwapTotal|SwapFree):/{print}' /proc/meminfo
-fi
+case "$os" in
+  Darwin) sysctl -n hw.memsize; vm_stat ;;
+  FreeBSD) sysctl hw.physmem hw.pagesize vm.stats.vm.v_free_count vm.stats.vm.v_inactive_count vm.stats.vm.v_active_count vm.stats.vm.v_wire_count kstat.zfs.misc.arcstats.size 2>/dev/null ;;
+  *) awk '/^(MemTotal|MemAvailable|MemFree|Cached|Buffers|SwapTotal|SwapFree):/{print}' /proc/meminfo ;;
+esac
 printf '__DD_DISK__\n'
-if test "$(uname -s)" = Darwin; then df -Pk / /System/Volumes/Data; else df -Pk; fi
+case "$os" in
+  Darwin) df -Pk / /System/Volumes/Data ;;
+  *) df -Pk ;;
+esac
 printf '__DD_SWAP__\n'
-if test "$(uname -s)" = Darwin; then sysctl vm.swapusage; else cat /proc/swaps; fi
+case "$os" in
+  Darwin) sysctl vm.swapusage ;;
+  FreeBSD) swapinfo -k 2>/dev/null ;;
+  *) cat /proc/swaps ;;
+esac
 printf '__DD_MOUNTS__\n'
-if test -r /proc/mounts; then awk '{print $2, $3, $4}' /proc/mounts; fi
+case "$os" in
+  FreeBSD) mount -p | awk '{print $2, $3, $4}' ;;
+  *) if test -r /proc/mounts; then awk '{print $2, $3, $4}' /proc/mounts; fi ;;
+esac
 printf '__DD_END__\n'
-'''
+"""
+
+OUTPUT_LIMIT = 262144
+STDERR_LIMIT = 65536
 
 
 class ProbeFailure(Exception):
@@ -31,17 +54,64 @@ class ProbeFailure(Exception):
         self.status, self.detail = status, detail
 
 
-def run(args, timeout=16):
+def _drain(stream, limit, chunks, overflow):
+    size = 0
+    while chunk := os.read(stream.fileno(), 65536):
+        if size < limit:
+            chunks.append(chunk[:limit-size])
+        size += len(chunk)
+        if overflow is not None and size > limit:
+            overflow.set()
+            return
+
+
+def _feed(stream, data):
     try:
-        result = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
+        stream.write(data)
+        stream.close()
+    except (BrokenPipeError, OSError):
+        pass
+
+
+def run(args, timeout=16, input=None):
+    """Run a fixed client command. Output is read incrementally and the client is killed past
+    OUTPUT_LIMIT, so a misbehaving device cannot make this process buffer unbounded data."""
+    try:
+        process = subprocess.Popen(args, stdin=subprocess.PIPE if input is not None else subprocess.DEVNULL,
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except FileNotFoundError:
         raise ProbeFailure("dependency_missing", "Required client is not installed: " + args[0])
-    except subprocess.TimeoutExpired:
-        raise ProbeFailure("timeout", "Connection or device response timed out")
-    if len(result.stdout) > 262144:
-        raise ProbeFailure("invalid_response", "Device response exceeded the probe limit")
-    if result.returncode:
-        error = result.stderr.lower()
+    out, err, overflow = [], [], threading.Event()
+    readers = [threading.Thread(target=_drain, args=(process.stdout, OUTPUT_LIMIT, out, overflow), daemon=True),
+               threading.Thread(target=_drain, args=(process.stderr, STDERR_LIMIT, err, None), daemon=True)]
+    threads = readers + ([threading.Thread(target=_feed, args=(process.stdin, input.encode()), daemon=True)]
+                         if input is not None else [])
+    for thread in threads:
+        thread.start()
+    deadline = time.monotonic() + timeout
+    failure = None
+    try:
+        while any(r.is_alive() for r in readers) or process.poll() is None:
+            if overflow.is_set():
+                failure = ProbeFailure("invalid_response", "Device response exceeded the probe limit")
+                break
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                failure = ProbeFailure("timeout", "Connection or device response timed out")
+                break
+            overflow.wait(min(remaining, 0.05))
+    finally:
+        if process.poll() is None:
+            process.kill()
+        process.wait()
+        for thread, stream in zip(threads, (process.stdout, process.stderr, process.stdin)):
+            thread.join(timeout=1)
+            if not thread.is_alive() and stream and not stream.closed:
+                stream.close()
+    if failure:
+        raise failure
+    if process.returncode:
+        error = b"".join(err).decode("utf-8", "replace").lower()
         if "host key verification failed" in error or "remote host identification has changed" in error:
             raise ProbeFailure("host_key_untrusted", "Verify this host's public-key fingerprint in a trusted terminal")
         if "permission denied" in error or "unauthorized" in error:
@@ -49,7 +119,7 @@ def run(args, timeout=16):
         if "timed out" in error:
             raise ProbeFailure("timeout", "The selected endpoint did not respond")
         raise ProbeFailure("connection_failed", "The selected client returned a connection error")
-    return result.stdout
+    return b"".join(out).decode("utf-8", "replace")
 
 
 def parse_disks(text):
@@ -76,6 +146,26 @@ def parse_linux_memory(text):
             "swap_used_bytes": fields["SwapTotal"]-fields["SwapFree"] if "SwapTotal" in fields and "SwapFree" in fields else None}
 
 
+def parse_freebsd_memory(text, swap):
+    fields = {name: int(value) for name, value in re.findall(r"^([\w.]+):\s+(\d+)\s*$", text, re.M)}
+    page = fields.get("hw.pagesize", 4096)
+    pages = lambda name: fields[name]*page if name in fields else None
+    free, inactive = pages("vm.stats.vm.v_free_count"), pages("vm.stats.vm.v_inactive_count")
+    active, wired = pages("vm.stats.vm.v_active_count"), pages("vm.stats.vm.v_wire_count")
+    devices = []
+    for line in swap.splitlines()[1:]:
+        parts = line.split()
+        if len(parts) >= 4 and parts[0] != "Total" and parts[1].isdigit() and parts[2].isdigit():
+            devices.append({"kind": "disk", "total_bytes": int(parts[1])*1024, "used_bytes": int(parts[2])*1024})
+    return {"total_bytes": fields.get("hw.physmem"), "free_bytes": free,
+            "available_bytes": free+inactive if free is not None and inactive is not None else None,
+            "used_bytes": active+wired if active is not None and wired is not None else None,
+            "cache_bytes": fields.get("kstat.zfs.misc.arcstats.size"),
+            "swap_total_bytes": sum(d["total_bytes"] for d in devices) if devices else None,
+            "swap_used_bytes": sum(d["used_bytes"] for d in devices) if devices else None,
+            "swap_devices": devices}
+
+
 def parse_ssh(text):
     sections = {}
     current = None
@@ -86,7 +176,7 @@ def parse_ssh(text):
         elif current:
             sections[current].append(line)
     identity = sections.get("__DD_ID__", [])
-    if len(identity) != 4 or identity[2] not in ("Darwin", "Linux"):
+    if len(identity) != 4 or identity[2] not in ("Darwin", "Linux", "FreeBSD"):
         raise ProbeFailure("invalid_response", "Unsupported or incomplete system identity")
     system = {"hostname": identity[0], "username": identity[1], "platform": identity[2], "kernel": identity[3]}
     version = "\n".join(sections.get("__DD_VERSION__", []))
@@ -106,6 +196,10 @@ def parse_ssh(text):
                   "free_bytes": page_fields.get("Pages free"), "available_bytes": None,
                   "cache_bytes": page_fields.get("File-backed pages"),
                   "swap_used_bytes": int(float(match[1])*1024**2) if match else None}
+    elif identity[2] == "FreeBSD":
+        match = re.search(r"^FREEBSD_VERSION=(.+)$", version, re.M)
+        system.update(name="FreeBSD", version=match[1].strip() if match else None)
+        memory = parse_freebsd_memory(memory_text, swap)
     else:
         for key, name in [("PRETTY_NAME", "name"), ("VERSION_ID", "version"), ("OS_VERSION", "firmware")]:
             match = re.search(r"^"+key+r"=(.+)$", version, re.M)
@@ -157,7 +251,7 @@ def probe_ssh(device, endpoint, credential):
         pairs = dict(line.split(" ", 1) for line in config.splitlines() if " " in line)
         if (pairs.get("hostname"), pairs.get("user"), pairs.get("port")) != (endpoint.host, endpoint.username, str(endpoint.port)):
             raise ProbeFailure("configuration_mismatch", "SSH alias does not match the registered address and account")
-    data = parse_ssh(run(ssh_args(endpoint, credential)+[SSH_PROBE]))
+    data = parse_ssh(run(ssh_args(endpoint, credential)+["/bin/sh", "-s"], input=SSH_PROBE))
     if data["system"]["username"] != endpoint.username:
         raise ProbeFailure("identity_mismatch", "Connected account does not match the registered account")
     if device.expected_hostname and data["system"]["hostname"] != device.expected_hostname:

@@ -20,7 +20,7 @@ Edit a device in place when an address changes. Changing a reusable credential p
 
 Registry imports/upserts and probes append local audit summaries with `cli`, `web` or `mcp` actor labels. These are interface labels, not authenticated human identity. Keep the newest 50 observations per endpoint and 1,000 probe-maintained audit events. Local metadata is private and unencrypted. Back up the private data directory while the app is stopped; never commit its files or personal exports to a public repository.
 
-v0.1 supports add/edit/upsert and local database backup. Archival, deletion UI, migration tooling and automatic encrypted backups are not yet provided.
+In the web UI, adding a device or access profile never replaces an existing ID (HTTP 409); editing uses `PUT` on the existing ID. `device-deck import` keeps upsert semantics for bulk changes. v0.1 supports add/edit/import and local database backup. Archival, deletion UI, migration tooling and automatic encrypted backups are not yet provided.
 
 ## Mobile connection prerequisites
 
