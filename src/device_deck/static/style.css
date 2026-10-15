@@ -184,6 +184,7 @@ select.input { padding: 0 10px; }
 .todo b { font-weight: 500; display: block; }
 .todo p { color: var(--ink-2); }
 .stack { display: flex; flex-direction: column; gap: 10px; }
+.stack.tight { gap: 6px; }
 .ok-text { font-size: 13px; color: var(--good-fg); }
 
 /* Editor */

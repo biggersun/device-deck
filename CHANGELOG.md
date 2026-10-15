@@ -13,11 +13,15 @@ Notable changes to DeviceDeck. The format follows [Keep a Changelog](https://kee
 - `device-deck export` and `GET /api/export`: re-importable registry JSON without observations or secrets.
 - `GET /api/events` and `GET /api/info` (version, data directory, executable path for MCP setup, retention).
 - Open-source project files: Chinese README, code of conduct, issue and pull request templates, Dependabot, and changelog.
+- The agent skill ships inside the package. `device-deck skill install|status|path` links it for Claude Code and Codex; it only creates or replaces symbolic links and never touches a real directory.
+- The README installs DeviceDeck by pasting one prompt into an agent, which installs the tool, links the skill, registers the MCP server and then registers devices with you.
 
 ### Changed
 - Creating a device or access profile in the web UI never replaces an existing ID (HTTP 409); editing uses `PUT` on the existing ID. `device-deck import` keeps upsert semantics.
 - The SSH probe runs in an explicit remote `/bin/sh -s` fed through stdin, so fish or csh login shells work. Client output is streamed and capped.
-- `uv` rebuilds the non-editable install whenever `src/` changes (`[tool.uv] cache-keys`).
+- `uv` rebuilds the non-editable install whenever `src/` or the skill changes (`[tool.uv] cache-keys`).
+- The skill is self-contained and covers registering devices with the user (JSON format, identity confirmation, host keys left to the user).
+- The console puts agent setup first (MCP last call, skill status per agent, install commands) on the renamed **Agents & activity** page. Claude Code setup uses `--scope user`.
 
 ### Fixed
 - The legacy UI read an empty device ID because endpoint inputs shared `name="id"`.

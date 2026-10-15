@@ -45,6 +45,10 @@ device-deck = "device_deck.cli:main"
 [tool.hatch.build.targets.wheel]
 packages = ["src/device_deck"]
 
+[tool.hatch.build.targets.wheel.force-include]
+# One skill source: skills/device-deck in the repository, device_deck/skill in the installed package.
+"skills/device-deck/SKILL.md" = "device_deck/skill/SKILL.md"
+
 [tool.hatch.build.targets.sdist]
 exclude = ["/docs/images", "/.claude", "/.github"]
 
@@ -54,4 +58,4 @@ testpaths = ["tests"]
 [tool.uv]
 # The project is installed non-editable (see README); rebuild it whenever package sources change
 # so `uv run --no-editable` never executes a stale snapshot.
-cache-keys = [{ file = "pyproject.toml" }, { file = "src/**/*.py" }, { file = "src/**/static/*" }]
+cache-keys = [{ file = "pyproject.toml" }, { file = "src/**/*.py" }, { file = "src/**/static/*" }, { file = "skills/**/SKILL.md" }]

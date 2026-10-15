@@ -4,7 +4,7 @@
 
 const STRINGS = {
   zh: {
-    navDevices: '设备', navAccess: '登录方式', navActivity: '活动与接入', loopback: '仅本机 127.0.0.1',
+    navDevices: '设备', navAccess: '登录方式', navActivity: '接入与活动', loopback: '仅本机 127.0.0.1',
     cancel: '取消', save: '保存', close: '关闭', edit: '编辑', remove: '删除', copy: '复制', copied: '已复制',
     devicesTitle: '设备', devicesLead: '每台设备的全部入口、登录方式和最后一次检查结果。状态只代表采集时刻，不代表现在在线。',
     addDevice: '＋ 添加设备', probeAll: '检查全部', probing: '检查中…', search: '搜索名称、ID、地址、序列号或标签',
@@ -65,11 +65,13 @@ const STRINGS = {
     methods: { ssh_key: 'SSH 私钥', ssh_agent: 'ssh-agent', password: '密码（手动输入）', adb_pairing: 'ADB 配对', ios_trust: 'iOS 信任', wda_access: 'WDA 访问' },
     planTitle: '连接方案', planPick: '选择入口', planDevice: '设备', planEndpoint: '入口', lastStatus: '最近状态', planSteps: '注意事项',
     planEmpty: '在设备页点「连接说明」，或在这里选择一个入口。', authMethod: '认证类型', credentialRef: '登录方式 ID',
-    activityTitle: '活动与接入', activityLead: '网页、命令行和 Agent 做过的每次登记、检查和删除。只记录动作，不记录任何密码。',
+    activityTitle: '接入与活动', activityLead: '日常直接问 Agent 就行，不用打开控制台。这一页确认 Agent 是否接好，并记录网页、命令行和 Agent 的每次登记、检查和删除，不记录任何密码。',
     actorAll: '全部', actors: { web: '网页', cli: '命令行', mcp: 'Agent' }, latestN: '最近 {n} 条', noEvents: '还没有活动记录。',
     actions: { inventory_upsert: '保存登记', probe: '检查', device_delete: '删除设备', credential_delete: '删除登录方式' },
-    agents: 'Agent 接入', agentsLead: '通过本机 stdio MCP 接入，只能读清单、看连接方案和运行固定的只读检查。',
-    lastAgent: '最近一次 Agent 调用', never: '还没有调用', claudeCode: 'Claude Code', codex: 'Codex（~/.codex/config.toml）',
+    agents: 'Agent 接入', agentsLead: 'MCP 让 Agent 能读清单、取连接方案、做只读检查；Skill 告诉它什么时候该查、怎么帮你登记设备。两样都装好后，直接问「NAS 磁盘还剩多少」就行。',
+    agentName: { claude: 'Claude Code', codex: 'Codex' }, skillState: { linked: '已安装', other: '已安装（另一份副本）', missing: '未安装', broken: '链接失效', conflict: '同名目录冲突' },
+    installSkill: '安装或修复 Skill', restartHint: '装好后重开一个 Agent 会话，新的 MCP 和 Skill 才会生效。', emptyAgent: '也可以直接让 Agent 帮你登记：在 Claude Code 或 Codex 里说「帮我把家里的设备登记到 DeviceDeck」。', agentSetup: '查看 Agent 接入',
+    lastAgent: 'MCP · 最近一次调用', never: '还没有调用', claudeCode: 'MCP · Claude Code（所有项目可用）', codex: 'MCP · Codex（~/.codex/config.toml）',
     tools: '开放的工具', readOnlyTool: '只读', probeTool: '只读探测，会记日志',
     toolList: { device_deck_list_devices: '列出设备和入口', device_deck_get_device: '读取一台设备', device_deck_connection_plan: '获取连接方案', device_deck_probe_device: '检查一个入口' },
     localData: '本地数据', dataDir: '数据目录', database: '数据库', permissions: '权限', permissionsValue: '目录 700，文件 600，仅当前用户可读',
@@ -79,7 +81,7 @@ const STRINGS = {
     language: 'English', loadFailed: '加载失败：{error}', justNow: '刚刚',
   },
   en: {
-    navDevices: 'Devices', navAccess: 'Access profiles', navActivity: 'Activity & agents', loopback: 'Loopback only 127.0.0.1',
+    navDevices: 'Devices', navAccess: 'Access profiles', navActivity: 'Agents & activity', loopback: 'Loopback only 127.0.0.1',
     cancel: 'Cancel', save: 'Save', close: 'Close', edit: 'Edit', remove: 'Delete', copy: 'Copy', copied: 'Copied',
     devicesTitle: 'Devices', devicesLead: 'Every endpoint, access method and last check result for each device. A status describes the moment it was observed, not now.',
     addDevice: '+ Add device', probeAll: 'Check all', probing: 'Checking…', search: 'Search name, ID, address, serial or tag',
@@ -140,11 +142,13 @@ const STRINGS = {
     methods: { ssh_key: 'SSH key', ssh_agent: 'ssh-agent', password: 'Password (typed manually)', adb_pairing: 'ADB pairing', ios_trust: 'iOS trust', wda_access: 'WDA access' },
     planTitle: 'Connection plan', planPick: 'Choose an endpoint', planDevice: 'Device', planEndpoint: 'Endpoint', lastStatus: 'Last status', planSteps: 'Before you connect',
     planEmpty: 'Use “Connect” on the devices page, or choose an endpoint here.', authMethod: 'Method', credentialRef: 'Access profile ID',
-    activityTitle: 'Activity & agents', activityLead: 'Every registration, check and deletion from the browser, the CLI and agents. Actions only; never a password.',
+    activityTitle: 'Agents & activity', activityLead: 'Day to day, just ask your agent; you do not need this console. This page confirms your agents are connected and logs every registration, check and deletion from the browser, the CLI and agents. Actions only; never a password.',
     actorAll: 'All', actors: { web: 'Browser', cli: 'CLI', mcp: 'Agent' }, latestN: 'Latest {n}', noEvents: 'No activity yet.',
     actions: { inventory_upsert: 'Saved registration', probe: 'Check', device_delete: 'Deleted device', credential_delete: 'Deleted access profile' },
-    agents: 'Agent access', agentsLead: 'Agents connect over local stdio MCP and can only read the inventory, get connection plans and run fixed read-only checks.',
-    lastAgent: 'Latest agent call', never: 'No calls yet', claudeCode: 'Claude Code', codex: 'Codex (~/.codex/config.toml)',
+    agents: 'Agent setup', agentsLead: 'MCP lets an agent read the inventory, get connection plans and run read-only checks; the skill tells it when to check and how to register devices with you. With both in place, just ask "how full is the NAS?".',
+    agentName: { claude: 'Claude Code', codex: 'Codex' }, skillState: { linked: 'Installed', other: 'Installed (another copy)', missing: 'Not installed', broken: 'Broken link', conflict: 'Name conflict' },
+    installSkill: 'Install or repair the skill', restartHint: 'Start a new agent session afterwards so it loads the MCP server and skill.', emptyAgent: 'Or let your agent do it: tell Claude Code or Codex "register my home devices in DeviceDeck".', agentSetup: 'Agent setup',
+    lastAgent: 'MCP · latest call', never: 'No calls yet', claudeCode: 'MCP · Claude Code (all projects)', codex: 'MCP · Codex (~/.codex/config.toml)',
     tools: 'Exposed tools', readOnlyTool: 'read-only', probeTool: 'read-only probe, logged',
     toolList: { device_deck_list_devices: 'List devices and endpoints', device_deck_get_device: 'Read one device', device_deck_connection_plan: 'Get a connection plan', device_deck_probe_device: 'Check one endpoint' },
     localData: 'Local data', dataDir: 'Data directory', database: 'Database', permissions: 'Permissions', permissionsValue: 'Directory 700, file 600; current user only',
@@ -423,7 +427,8 @@ function devicesView() {
     return [head, h('section', { class: 'panel empty' }, h('h2', null, t('emptyTitle')), h('p', null, t('emptyText')),
       state.profiles.length
         ? h('a', { class: 'button primary', href: '#/devices/new' }, t('addDevice'))
-        : h('button', { class: 'button primary', type: 'button', onclick: () => openProfile(null) }, t('emptyAction')))];
+        : h('button', { class: 'button primary', type: 'button', onclick: () => openProfile(null) }, t('emptyAction')),
+      h('p', { class: 'small muted' }, t('emptyAgent'), ' ', h('a', { href: '#/activity' }, t('agentSetup'))))];
   }
 
   const tiles = h('div', { class: 'tiles', role: 'group', 'aria-label': t('devicesTitle') },
@@ -921,7 +926,7 @@ async function deleteProfile(p) {
   }
 }
 
-// ---------- Activity & agents ----------
+// ---------- Agents & activity ----------
 
 function activityView() {
   const events = state.events.filter(e => state.actor === 'all' || e.actor === state.actor);
@@ -939,7 +944,7 @@ function activityView() {
     h('span', { class: 'result', role: 'cell' }, e.action === 'probe' && STRINGS.en.status[e.summary] ? pill(e.summary) : h('span', { class: 'small muted' }, e.summary))));
   const log = h('section', { class: 'panel' }, filters, h('div', { class: 'scroll-x' }, h('div', { class: 'events', role: 'table', 'aria-label': t('activityTitle') },
     rows.length ? rows : h('p', { class: 'empty' }, t('noEvents')))));
-  return [head, h('div', { class: 'split' }, h('div', { class: 'main-col' }, log), h('aside', { class: 'side-col' }, agentPanel(), dataPanel()))];
+  return [head, h('div', { class: 'split' }, h('div', { class: 'main-col' }, agentPanel(), log), h('aside', { class: 'side-col' }, dataPanel()))];
 }
 
 function agentPanel() {
@@ -949,14 +954,21 @@ function agentPanel() {
   const args = [...homeArgs, 'mcp'];
   const lastMcp = state.events.find(e => e.actor === 'mcp');
   const tools = ['device_deck_list_devices', 'device_deck_get_device', 'device_deck_connection_plan', 'device_deck_probe_device'];
+  const skillTone = { linked: 'good', other: 'good', missing: 'warn' };
   return h('section', { class: 'panel pad' },
     h('div', null, h('h2', null, t('agents')), h('p', { class: 'small muted' }, t('agentsLead'))),
-    h('div', { class: 'agent-row' }, h('span', { class: 'dot tone-' + (lastMcp ? 'good' : 'none') }), h('b', null, t('lastAgent')), h('span', null, lastMcp ? time(lastMcp.at) : t('never'))),
+    h('div', { class: 'stack tight' },
+      h('div', { class: 'agent-row' }, h('span', { class: 'dot tone-' + (lastMcp ? 'good' : 'none') }), h('b', null, t('lastAgent')), h('span', null, lastMcp ? time(lastMcp.at) : t('never'))),
+      (info.skill || []).map(s => h('div', { class: 'agent-row', title: s.path }, h('span', { class: 'dot tone-' + (skillTone[s.state] || 'bad') }),
+        h('b', null, 'Skill · ' + t('agentName.' + s.agent)), h('span', null, t('skillState.' + s.state))))),
     !info.executable && h('p', { class: 'hint error' }, t('executableMissing')),
+    h('h3', null, t('installSkill')),
+    codeBlock([exe, 'skill', 'install'].map(shellQuote).join(' ')),
     h('h3', null, t('claudeCode')),
-    codeBlock(['claude', 'mcp', 'add', 'device-deck', '--', exe, ...args].map(shellQuote).join(' ')),
+    codeBlock(['claude', 'mcp', 'add', '--scope', 'user', 'device-deck', '--', exe, ...args].map(shellQuote).join(' ')),
     h('h3', null, t('codex')),
     codeBlock('[mcp_servers.device-deck]\ncommand = ' + JSON.stringify(exe) + '\nargs = ' + JSON.stringify(args).replace(/,/g, ', ')),
+    h('p', { class: 'small muted' }, t('restartHint')),
     h('h3', null, t('tools')),
     h('div', { class: 'stack' }, tools.map(name => h('div', { class: 'tool-row' }, h('span', null, t('toolList.' + name)), h('code', { class: 'small muted' }, name),
       h('span', { class: 'pill ' + (name.endsWith('probe_device') ? 'tone-warn' : 'tone-good') }, name.endsWith('probe_device') ? t('probeTool') : t('readOnlyTool'))))));

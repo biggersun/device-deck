@@ -22,7 +22,7 @@ Registry imports/upserts, deletions and probes append local audit summaries with
 
 In the web UI, adding a device or access profile never replaces an existing ID (HTTP 409); editing uses `PUT` on the existing ID. `device-deck import` keeps upsert semantics for bulk changes.
 
-Deleting a device also removes its saved observations; its access profiles and key files are untouched. An access profile cannot be deleted while any endpoint uses it (HTTP 409 lists the users). `device-deck export` or **Export inventory JSON** on the Activity page produces a re-importable registry without observations; it contains no secrets because none are stored. For a full copy including observations, back up the SQLite file (for example `sqlite3 inventory.sqlite ".backup copy.sqlite"`). Archival, migration tooling and automatic encrypted backups are not yet provided.
+Deleting a device also removes its saved observations; its access profiles and key files are untouched. An access profile cannot be deleted while any endpoint uses it (HTTP 409 lists the users). `device-deck export` or **Export inventory JSON** on the **Agents & activity** page produces a re-importable registry without observations; it contains no secrets because none are stored. For a full copy including observations, back up the SQLite file (for example `sqlite3 inventory.sqlite ".backup copy.sqlite"`). Archival, migration tooling and automatic encrypted backups are not yet provided.
 
 ## Mobile connection prerequisites
 

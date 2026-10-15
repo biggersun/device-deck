@@ -31,5 +31,5 @@ jobs:
         run: node --check src/device_deck/static/app.js
       - name: Build wheel and sdist
         run: uv build
-      - name: Wheel ships the web UI
-        run: python -c "import glob, zipfile; names = zipfile.ZipFile(glob.glob('dist/*.whl')[0]).namelist(); missing = [f for f in ('index.html', 'app.js', 'style.css') if 'device_deck/static/' + f not in names]; assert not missing, missing"
+      - name: Wheel ships the web UI and the skill
+        run: python -c "import glob, zipfile; names = zipfile.ZipFile(glob.glob('dist/*.whl')[0]).namelist(); missing = [f for f in ('static/index.html', 'static/app.js', 'static/style.css', 'skill/SKILL.md') if 'device_deck/' + f not in names]; assert not missing, missing"

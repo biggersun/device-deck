@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse, Response, JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from . import __version__
+from . import __version__, skill
 from .models import Credential, Device, Inventory
 from .service import Hub
 from .store import ConflictError
@@ -81,9 +81,14 @@ def create_app(home=None):
     def info():
         executable = Path(sys.argv[0]).resolve() if Path(sys.argv[0]).name == "device-deck" else shutil.which("device-deck")
         home = Path.home().resolve()
-        short = "~/"+str(hub.store.home.relative_to(home)) if hub.store.home.is_relative_to(home) else str(hub.store.home)
-        return {"version": __version__, "data_dir": str(hub.store.home), "data_dir_short": short, "database": str(hub.store.path),
-                "executable": str(executable) if executable else None,
+
+        def shorten(path):
+            path = Path(path)
+            return "~/"+str(path.relative_to(home)) if path.is_relative_to(home) else str(path)
+
+        return {"version": __version__, "data_dir": str(hub.store.home), "data_dir_short": shorten(hub.store.home),
+                "database": str(hub.store.path), "executable": str(executable) if executable else None,
+                "skill": [dict(s, path=shorten(s["path"])) for s in skill.status(home)],
                 "retention": {"observations_per_endpoint": 50, "events": 1000}}
 
     @app.get("/api/export")
