@@ -10,3 +10,12 @@
 - [x] Prepare public code, fictional examples and documentation; sensitive-data staging scan passed.
 
 Limits: real phone acceptance, automated password vault access, discovery reconciliation, remote multi-user serving and device actions are not part of v0.1. Local personal inventory and runtime evidence never enter this public project.
+
+# Next
+
+- [ ] Real-phone acceptance for Android ADB (USB and wireless) and iOS USB/WDA.
+- [ ] Disk reporting: include ZFS and network filesystems where meaningful, and de-duplicate bind mounts.
+- [ ] macOS: estimate *available* memory (free + reclaimable cache) instead of leaving it unknown.
+- [ ] Localize connection-plan steps and audit summaries returned by the server (the UI is bilingual; these are English).
+- [ ] Publish tagged releases to PyPI so `uvx device-deck` works without a Git URL.
+- [ ] Optional scheduled checks with a visible staleness indicator (still read-only, still explicit endpoints).

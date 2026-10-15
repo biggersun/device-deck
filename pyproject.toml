@@ -5,20 +5,48 @@ build-backend = "hatchling.build"
 [project]
 name = "device-deck"
 version = "0.1.0"
-description = "Local-first device inventory, connection profiles, read-only probes, Skills and MCP"
+description = "A private registry of your computers, NAS, routers and phones for you, your CLI and AI agents (MCP): endpoints, access references and read-only checks"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "biggersun" }]
+keywords = ["mcp", "model-context-protocol", "claude-code", "codex", "ssh", "adb", "ios", "homelab", "device-inventory", "agent"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Environment :: Web Environment",
+  "Intended Audience :: Developers",
+  "Intended Audience :: System Administrators",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: System :: Monitoring",
+  "Topic :: System :: Networking :: Monitoring",
+  "Topic :: System :: Systems Administration",
+]
 dependencies = ["fastapi>=0.115,<1", "uvicorn>=0.30,<1", "mcp>=2,<3", "pydantic>=2.8,<3"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8,<10", "httpx>=0.27,<1"]
+
+[project.urls]
+Homepage = "https://github.com/biggersun/device-deck"
+Repository = "https://github.com/biggersun/device-deck"
+Issues = "https://github.com/biggersun/device-deck/issues"
+Changelog = "https://github.com/biggersun/device-deck/blob/main/CHANGELOG.md"
 
 [project.scripts]
 device-deck = "device_deck.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/device_deck"]
+
+[tool.hatch.build.targets.sdist]
+exclude = ["/docs/images", "/.claude", "/.github"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

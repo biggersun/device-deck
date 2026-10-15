@@ -1,0 +1,21 @@
+name: Feature request
+description: Suggest a protocol, metric or workflow
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like DeviceDeck to do?
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      description: DeviceDeck stays read-only and secret-free by design. Proposals outside that need a design discussion first.
+      options:
+        - label: This does not require storing or retrieving secrets, pairing devices, or running arbitrary remote commands — or I explain why below.
