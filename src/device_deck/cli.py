@@ -15,6 +15,7 @@ def main():
     commands.add_parser("list")
     commands.add_parser("credentials")
     commands.add_parser("events")
+    commands.add_parser("export", help="Print the registry as import-compatible JSON (no observations or secrets)")
     importer = commands.add_parser("import", help="Upsert an inventory JSON; never import passwords or key contents")
     importer.add_argument("file")
     for name in ["get", "plan", "probe"]:
@@ -23,6 +24,12 @@ def main():
         if name != "get":
             command.add_argument("endpoint_id")
     commands.add_parser("mcp", help="Serve local stdio MCP; stdout is reserved for protocol messages")
+    skill_command = commands.add_parser("skill", help="Show or link the bundled agent skill for Claude Code and Codex")
+    skill_command.add_argument("action", choices=["path", "status", "install"])
+    skill_command.add_argument("--agent", choices=["claude", "codex"], action="append",
+                               help="Limit to one agent (repeatable; default: both)")
+    skill_command.add_argument("--replace", action="store_true",
+                               help="Replace a symlink that points at another copy; real directories are never touched")
     server = commands.add_parser("serve", help="Run the loopback-only local web application")
     server.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
@@ -36,6 +43,19 @@ def main():
             from .web import create_app
             uvicorn.run(create_app(args.home), host="127.0.0.1", port=args.port)
             return
+        if args.command == "skill":
+            from . import skill
+            if args.action == "path":
+                print(skill.source_dir())
+                return
+            result = skill.status() if args.action == "status" else skill.install(args.agent, args.replace)
+            if args.agent:
+                result = [r for r in result if r["agent"] in args.agent]
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            # "other" means a working copy from elsewhere (for example a git checkout) is already linked.
+            if args.action == "install" and any(r["state"] not in ("linked", "other") for r in result):
+                sys.exit(2)
+            return
         hub = Hub(args.home)
         if args.command == "list":
             result = hub.store.list_devices()
@@ -43,6 +63,8 @@ def main():
             result = hub.store.credentials()
         elif args.command == "events":
             result = hub.store.events()
+        elif args.command == "export":
+            result = hub.store.export_inventory()
         elif args.command == "import":
             inventory = Inventory.model_validate_json(Path(args.file).expanduser().read_text(encoding="utf-8"))
             result = hub.store.import_inventory(inventory)

@@ -1,11 +1,15 @@
 from importlib.resources import files
 import json
+from pathlib import Path
+import shutil
+import sys
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse, Response, JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from . import __version__, skill
 from .models import Credential, Device, Inventory
 from .service import Hub
 from .store import ConflictError
@@ -70,8 +74,35 @@ def create_app(home=None):
         return hub.store.credentials()
 
     @app.get("/api/events")
-    def events():
-        return hub.store.events()
+    def events(limit: int = 30):
+        return hub.store.events(limit)
+
+    @app.get("/api/info")
+    def info():
+        executable = Path(sys.argv[0]).resolve() if Path(sys.argv[0]).name == "device-deck" else shutil.which("device-deck")
+        home = Path.home().resolve()
+
+        def shorten(path):
+            path = Path(path)
+            return "~/"+str(path.relative_to(home)) if path.is_relative_to(home) else str(path)
+
+        return {"version": __version__, "data_dir": str(hub.store.home), "data_dir_short": shorten(hub.store.home),
+                "database": str(hub.store.path), "executable": str(executable) if executable else None,
+                "skill": [dict(s, path=shorten(s["path"])) for s in skill.status(home)],
+                "retention": {"observations_per_endpoint": 50, "events": 1000}}
+
+    @app.get("/api/export")
+    def export():
+        return JSONResponse(hub.store.export_inventory(),
+                            headers={"Content-Disposition": 'attachment; filename="device-deck-inventory.json"'})
+
+    @app.delete("/api/devices/{device_id}")
+    def delete_device(device_id: str):
+        return hub.store.delete_device(device_id, "web")
+
+    @app.delete("/api/credentials/{credential_id}")
+    def delete_credential(credential_id: str):
+        return hub.store.delete_credential(credential_id, "web")
 
     def same_id(path_id, record):
         if path_id != record.id:

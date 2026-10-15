@@ -1,0 +1,49 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Redact before posting.** Do not include real IP addresses, hostnames, usernames, serials/UDIDs, key paths you consider private, passwords or pairing codes. Use fictional values such as `192.0.2.10`.
+        Security problems go to a [private advisory](https://github.com/biggersun/device-deck/security/advisories/new), not here.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Commands, UI steps or a redacted inventory snippet.
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where
+      multiple: true
+      options: [Web UI, CLI, MCP / agent, Skill, Install / packaging]
+  - type: dropdown
+    id: protocol
+    attributes:
+      label: Protocol
+      multiple: true
+      options: [SSH, Android ADB, iOS USB, iOS WDA, Not protocol specific]
+  - type: input
+    id: version
+    attributes:
+      label: DeviceDeck version or commit
+      placeholder: 0.1.0 / 6da784d
+  - type: input
+    id: env
+    attributes:
+      label: OS and Python version (this computer, and the target device if relevant)
+      placeholder: macOS 26.0, Python 3.13 → Debian 12 NAS
+  - type: textarea
+    id: output
+    attributes:
+      label: Status and detail shown (redacted)
+      render: text

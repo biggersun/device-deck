@@ -2,42 +2,40 @@
 
 All interfaces use the same private data directory. Setting `DEVICE_DECK_HOME` must point to your private inventory directory, never a public checkout. A local agent also needs access to its existing SSH keys, ADB pairings or iOS trusted computer context. Remote/cloud agents do not acquire those capabilities from a Markdown skill.
 
+The quickest setup is the agent prompt in the [README](../README.md#install-paste-this-to-your-agent). This page describes the pieces it installs.
+
 ## Skill
 
-Install one shared skill source for local Codex and Claude Code:
+The skill ships inside the package (source: [`skills/device-deck/SKILL.md`](../skills/device-deck/SKILL.md)). Link it for local Claude Code (`~/.claude/skills`) and Codex (`~/.agents/skills`):
 
 ```bash
-mkdir -p ~/.agents/skills ~/.claude/skills
-ln -s /absolute/path/device-deck/skills/device-deck ~/.agents/skills/device-deck
-ln -s /absolute/path/device-deck/skills/device-deck ~/.claude/skills/device-deck
+device-deck skill install          # both agents; --agent claude|codex to pick one
+device-deck skill status           # linked, other (another copy), missing, broken or conflict
+device-deck skill path             # where the packaged skill lives
 ```
 
-Do not overwrite an existing skill of that name. Invoke `$device-deck` in Codex or `/device-deck` in Claude Code. Ordinary device requests can select the skill automatically. [Codex discovery](https://learn.chatgpt.com/docs/build-skills), [Claude skill discovery](https://code.claude.com/docs/en/skills).
+Installation only creates symbolic links. A dangling link (for example after a Python upgrade moved the tool) is recreated. A link to another copy, such as a git checkout, is left in place unless you pass `--replace`. A real directory or file with the same name is never touched and is reported as a conflict.
+
+Invoke `$device-deck` in Codex or `/device-deck` in Claude Code, or just ask about a device; the skill is selected automatically. [Codex discovery](https://learn.chatgpt.com/docs/build-skills), [Claude skill discovery](https://code.claude.com/docs/en/skills).
 
 ## MCP stdio
 
-Use the installed entry point or your checkout's `.venv/bin/device-deck`:
+Register the installed entry point with each client's own command. `--scope user` makes it available in every Claude Code project rather than only the current one:
 
-```json
-{
-  "mcpServers": {
-    "device-deck": {
-      "command": "/absolute/path/device-deck/.venv/bin/device-deck",
-      "args": ["mcp"]
-    }
-  }
-}
+```bash
+claude mcp add --scope user device-deck -- "$(command -v device-deck)" mcp
+codex mcp add device-deck -- "$(command -v device-deck)" mcp
 ```
 
-For Codex:
+Codex can also be configured in `~/.codex/config.toml`:
 
 ```toml
 [mcp_servers.device-deck]
-command = "/absolute/path/device-deck/.venv/bin/device-deck"
+command = "/absolute/path/to/device-deck"
 args = ["mcp"]
 ```
 
-Use your client's native MCP registration command rather than replacing its existing configuration. Paths are installation-specific; existing MCP connections, permissions and environment must be preserved. Restart/reconnect a client if it does not reload new MCP configuration.
+Add `"--home", "/path"` before `"mcp"` if your inventory is not in the default directory. Use your client's native registration rather than replacing its configuration; existing MCP connections, permissions and environment must be preserved. Each agent session starts its own `device-deck mcp` process and stops it when the session ends; start a new session after installing or upgrading.
 
 | Tool | Input | Output / side effect |
 |---|---|---|

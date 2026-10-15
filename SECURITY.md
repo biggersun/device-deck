@@ -6,4 +6,8 @@ The inventory stores authentication metadata and external references, not secret
 
 Strict OpenSSH host-key checking stays enabled. The first host key must be enrolled with independently verified fingerprint information in a trusted native client. Phone trust and ADB pairing happen outside this service. WDA status can be reachable without identity verification. Fixed probes never install software, open debug ports, alter routes, reboot a device or execute user-supplied remote commands.
 
-Do not commit runtime databases, real IP/serial inventories, screenshots containing private data, SSH private keys, pairing codes or token-bearing configuration. Public examples are fictional. Report suspected vulnerabilities privately through GitHub's security advisory mechanism where enabled; do not post credentials or exploit data in public issues. This project does not yet provide an authenticated security support SLA.
+Do not commit runtime databases, real IP/serial inventories, screenshots containing private data, SSH private keys, pairing codes or token-bearing configuration. Public examples are fictional. ## Reporting a vulnerability
+
+Report suspected vulnerabilities privately through [GitHub security advisories](https://github.com/biggersun/device-deck/security/advisories/new). Do not post credentials, real inventories or exploit details in public issues. Please include the affected version or commit, the interface (web, CLI, MCP or Skill) and a redacted reproduction. This is a volunteer project with no security support SLA. Reports are acknowledged as soon as practical, and fixes land on `main` with a `CHANGELOG.md` entry.
+
+Only the latest commit on `main` receives security fixes during v0.x.
