@@ -15,6 +15,7 @@ def main():
     commands.add_parser("list")
     commands.add_parser("credentials")
     commands.add_parser("events")
+    commands.add_parser("export", help="Print the registry as import-compatible JSON (no observations or secrets)")
     importer = commands.add_parser("import", help="Upsert an inventory JSON; never import passwords or key contents")
     importer.add_argument("file")
     for name in ["get", "plan", "probe"]:
@@ -43,6 +44,8 @@ def main():
             result = hub.store.credentials()
         elif args.command == "events":
             result = hub.store.events()
+        elif args.command == "export":
+            result = hub.store.export_inventory()
         elif args.command == "import":
             inventory = Inventory.model_validate_json(Path(args.file).expanduser().read_text(encoding="utf-8"))
             result = hub.store.import_inventory(inventory)

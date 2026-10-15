@@ -140,6 +140,33 @@ class Store:
                        (result["device_id"], result["endpoint_id"], result["device_id"], result["endpoint_id"]))
             db.execute("DELETE FROM events WHERE id NOT IN (SELECT id FROM events ORDER BY id DESC LIMIT 1000)")
 
+    def delete_device(self, device_id, actor="cli"):
+        with self.connect() as db:
+            if not db.execute("DELETE FROM devices WHERE id=?", (device_id,)).rowcount:
+                raise KeyError("Device not found")
+            db.execute("DELETE FROM observations WHERE device_id=?", (device_id,))
+            self._event(db, actor, "device_delete", device_id, "device and its saved observations removed")
+        return {"deleted": device_id}
+
+    def delete_credential(self, credential_id, actor="cli"):
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            users = [r[0] for r in db.execute("SELECT id,payload FROM devices")
+                     if any(e.credential_id == credential_id for e in Device.model_validate_json(r[1]).endpoints)]
+            if users:
+                raise ConflictError("Access profile is still used by: " + ", ".join(sorted(users)))
+            if not db.execute("DELETE FROM credentials WHERE id=?", (credential_id,)).rowcount:
+                raise KeyError("Credential reference not found")
+            self._event(db, actor, "credential_delete", credential_id, "access profile removed")
+        return {"deleted": credential_id}
+
+    def export_inventory(self):
+        """The registry in import format: no observations, events or secrets (none are stored)."""
+        with self.connect() as db:
+            credentials = [Credential.model_validate_json(r[0]) for r in db.execute("SELECT payload FROM credentials ORDER BY id")]
+            devices = [Device.model_validate_json(r[0]) for r in db.execute("SELECT payload FROM devices ORDER BY id")]
+        return Inventory(credentials=credentials, devices=devices).model_dump(mode="json", exclude_none=True)
+
     def events(self, limit=30):
         if not 1 <= limit <= 100:
             raise ValueError("limit must be 1..100")

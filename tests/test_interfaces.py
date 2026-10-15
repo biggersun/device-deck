@@ -132,3 +132,40 @@ def test_alias_mismatch_stops_before_connection(tmp_path,monkeypatch):
     monkeypatch.setattr(adapters,"run",fake)
     result=hub.probe("fixture","lan")
     assert result["status"] == "configuration_mismatch" and len(calls)==1
+
+
+def test_delete_export_and_info(tmp_path):
+    client = TestClient(create_app(tmp_path), base_url="http://127.0.0.1")
+    origin = {"origin": "http://127.0.0.1"}
+    Store(tmp_path).import_inventory(fixture_inventory())
+    exported = client.get("/api/export").json()
+    assert Inventory.model_validate(exported).devices[0].id == "fixture"
+    assert "observation" not in json.dumps(exported)
+    info = client.get("/api/info").json()
+    assert info["data_dir"] == str(tmp_path.resolve()) and info["retention"]["observations_per_endpoint"] == 50
+    assert info["data_dir_short"] == info["data_dir"] or info["data_dir_short"].startswith("~/")
+    assert client.delete("/api/credentials/key", headers=origin).status_code == 409
+    assert client.delete("/api/devices/fixture").status_code == 403
+    assert client.delete("/api/devices/fixture", headers=origin).status_code == 200
+    assert client.delete("/api/devices/fixture", headers=origin).status_code == 404
+    assert client.delete("/api/credentials/key", headers=origin).status_code == 200
+    assert client.get("/api/events?limit=5").json()[0]["action"] == "credential_delete"
+    assert client.get("/api/events?limit=500").status_code == 400
+
+
+def test_cli_export_round_trips_the_example_inventory(tmp_path, monkeypatch, capsys):
+    from pathlib import Path
+    import sys
+    from device_deck import cli
+    example = Path(__file__).parent.parent / "examples" / "inventory.json"
+    for argv in (["import", str(example)], ["export"]):
+        monkeypatch.setattr(sys, "argv", ["device-deck", "--home", str(tmp_path / "a"), *argv])
+        capsys.readouterr()
+        cli.main()
+    exported = json.loads(capsys.readouterr().out)
+    original = Inventory.model_validate_json(example.read_text(encoding="utf-8"))
+    by_id = lambda records: sorted(records, key=lambda r: r.id)
+    assert by_id(Inventory.model_validate(exported).devices) == by_id(original.devices)
+    assert by_id(Inventory.model_validate(exported).credentials) == by_id(original.credentials)
+    Store(tmp_path / "b").import_inventory(Inventory.model_validate(exported), mode="create")
+    assert Store(tmp_path / "b").export_inventory() == exported
