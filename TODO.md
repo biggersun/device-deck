@@ -4,7 +4,7 @@
 - [x] Implement private shared SQLite registry and typed validation.
 - [x] Implement SSH, already-paired Android ADB, trusted iOS USB and existing WDA status adapters.
 - [x] Implement local web UI, CLI, Skill and MCP contracts.
-- [x] Validate model, transport, HTTP origin and MCP behavior: 28 tests pass.
+- [x] Validate model, transport, HTTP origin and MCP behavior with automated tests.
 - [x] Import the owner's device inventory privately and validate existing SSH endpoints.
 - [x] Inspect the local web UI and native agent discovery/MCP calls.
 - [x] Prepare public code, fictional examples and documentation; sensitive-data staging scan passed.

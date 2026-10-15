@@ -12,6 +12,10 @@ def now():
     return datetime.now(timezone.utc).isoformat()
 
 
+class ConflictError(Exception):
+    """A create request named an ID that is already registered."""
+
+
 def default_home():
     return Path(os.environ.get("DEVICE_DECK_HOME", "~/.local/share/device-deck")).expanduser().resolve()
 
@@ -48,8 +52,19 @@ class Store:
         db.execute("INSERT INTO events(at,actor,action,subject,summary) VALUES(?,?,?,?,?)",
                    (now(), actor, action, subject, summary))
 
-    def import_inventory(self, inventory: Inventory, actor="cli"):
+    def import_inventory(self, inventory: Inventory, actor="cli", mode="upsert"):
+        """Write records atomically. mode: "upsert" (import), "create" (IDs must be new) or "update" (IDs must exist)."""
+        if mode not in ("upsert", "create", "update"):
+            raise ValueError("mode must be upsert, create or update")
         with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            for table, records in (("credentials", inventory.credentials), ("devices", inventory.devices)):
+                for record in records:
+                    exists = db.execute(f"SELECT 1 FROM {table} WHERE id=?", (record.id,)).fetchone()
+                    if mode == "create" and exists:
+                        raise ConflictError(f"ID already registered: {record.id}; edit the existing record instead")
+                    if mode == "update" and not exists:
+                        raise KeyError("Registered record not found")
             known = {r[0] for r in db.execute("SELECT id FROM credentials")}
             methods = {r[0]: json.loads(r[1])["method"] for r in db.execute("SELECT id,payload FROM credentials")}
             for credential in inventory.credentials:

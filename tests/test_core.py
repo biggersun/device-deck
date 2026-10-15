@@ -1,6 +1,9 @@
 import json
 from pathlib import Path
+import platform
 import subprocess
+import sys
+import time
 
 import pytest
 from pydantic import ValidationError
@@ -8,7 +11,7 @@ from pydantic import ValidationError
 from device_deck import adapters
 from device_deck.models import Credential, Device, Inventory
 from device_deck.service import Hub
-from device_deck.store import Store
+from device_deck.store import ConflictError, Store
 
 
 def fixture_inventory(method="ssh_key"):
@@ -55,6 +58,21 @@ def test_reused_credential_cannot_break_existing_device(tmp_path):
     with pytest.raises(ValueError):
         store.import_inventory(Inventory(credentials=[Credential(id="key", name="Changed", method="adb_pairing")]))
     assert store.get_credential("key").method == "ssh_key"
+
+
+def test_create_never_overwrites_and_update_requires_existing(tmp_path):
+    store = Store(tmp_path)
+    store.import_inventory(fixture_inventory())
+    other = Device(id="fixture", name="Other box", kind="computer", endpoints=fixture_inventory().devices[0].endpoints)
+    with pytest.raises(ConflictError):
+        store.import_inventory(Inventory(devices=[other]), mode="create")
+    with pytest.raises(ConflictError):
+        store.import_inventory(Inventory(credentials=[Credential(id="key", name="Agent", method="ssh_agent")]), mode="create")
+    assert store.get_device("fixture").name == "Fixture server"
+    with pytest.raises(KeyError):
+        store.import_inventory(Inventory(devices=[other.model_copy(update={"id": "missing"})]), mode="update")
+    store.import_inventory(Inventory(devices=[other]), mode="update")
+    assert store.get_device("fixture").name == "Other box"
 
 
 def test_one_identity_has_multiple_routes_and_real_pagination(tmp_path):
@@ -149,12 +167,103 @@ def test_ssh_is_strict_and_no_user_supplied_command():
     assert args[-1] == "operator@192.0.2.10" and "-i" in args
 
 
-def test_ssh_failure_does_not_echo_raw_stderr(monkeypatch):
-    monkeypatch.setattr(subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, 255, "", "Permission denied. private-input-value"))
+def test_ssh_failure_does_not_echo_raw_stderr():
+    client = [sys.executable, "-c", "import sys; sys.stderr.write('Permission denied. private-input-value'); sys.exit(255)"]
     with pytest.raises(adapters.ProbeFailure) as error:
-        adapters.run(["ssh"])
+        adapters.run(client)
     assert error.value.status == "authentication_failed"
     assert "private-input-value" not in error.value.detail
+
+
+def test_oversized_output_is_cut_off_without_buffering_it():
+    client = [sys.executable, "-c", "import sys\nfor _ in range(800): sys.stdout.buffer.write(b'x' * 65536)"]
+    started = time.monotonic()
+    with pytest.raises(adapters.ProbeFailure) as error:
+        adapters.run(client, timeout=10)
+    assert error.value.status == "invalid_response"
+    assert time.monotonic() - started < 5
+
+
+def test_timeout_kills_the_client():
+    started = time.monotonic()
+    with pytest.raises(adapters.ProbeFailure) as error:
+        adapters.run([sys.executable, "-c", "import time; time.sleep(30)"], timeout=0.5)
+    assert error.value.status == "timeout"
+    assert time.monotonic() - started < 3
+
+
+def test_run_feeds_stdin():
+    assert adapters.run(["/bin/sh", "-s"], input="echo fixture-output") == "fixture-output\n"
+
+
+@pytest.mark.skipif(platform.system() not in ("Darwin", "Linux"), reason="probe script targets POSIX hosts")
+def test_probe_script_runs_under_posix_sh_and_parses_this_host():
+    data = adapters.parse_ssh(adapters.run(["/bin/sh", "-s"], input=adapters.SSH_PROBE))
+    assert data["system"]["hostname"] == platform.node()
+    assert data["system"]["platform"] == platform.system()
+    assert data["memory"]["total_bytes"] > 0 and data["disks"]
+
+
+def test_ssh_probe_sends_script_to_explicit_posix_shell(tmp_path, monkeypatch):
+    hub = Hub(tmp_path)
+    hub.store.import_inventory(fixture_inventory())
+    calls = []
+    def fake(args, **kwargs):
+        calls.append((args, kwargs))
+        return LINUX_SAMPLE
+    monkeypatch.setattr(adapters, "run", fake)
+    assert hub.probe("fixture", "lan")["status"] == "verified"
+    args, kwargs = calls[-1]
+    assert args[-3:] == ["operator@192.0.2.10", "/bin/sh", "-s"]
+    assert kwargs["input"] == adapters.SSH_PROBE
+
+
+FREEBSD_SAMPLE = '''__DD_ID__
+fixture-router
+root
+FreeBSD
+14.1-RELEASE-p3
+__DD_VERSION__
+FREEBSD_VERSION=14.1-RELEASE-p5
+__DD_MEMORY__
+hw.physmem: 8589934592
+hw.pagesize: 4096
+vm.stats.vm.v_free_count: 1000000
+vm.stats.vm.v_inactive_count: 200000
+vm.stats.vm.v_active_count: 300000
+vm.stats.vm.v_wire_count: 400000
+__DD_DISK__
+Filesystem 1024-blocks Used Avail Capacity Mounted on
+/dev/ada0p2 20000000 5000000 15000000 25% /
+devfs 1 1 0 100% /dev
+__DD_SWAP__
+Device          1K-blocks     Used    Avail Capacity
+/dev/ada0p3       2097152     1024  2096128     0%
+__DD_MOUNTS__
+/ ufs rw
+/dev devfs rw
+__DD_END__
+'''
+
+
+def test_freebsd_router_metrics():
+    data = adapters.parse_ssh(FREEBSD_SAMPLE)
+    assert data["system"]["name"] == "FreeBSD" and data["system"]["version"] == "14.1-RELEASE-p5"
+    assert data["memory"]["total_bytes"] == 8589934592
+    assert data["memory"]["available_bytes"] == 1200000*4096
+    assert data["memory"]["used_bytes"] == 700000*4096
+    assert data["memory"]["cache_bytes"] is None
+    assert data["memory"]["swap_used_bytes"] == 1024*1024
+    assert [d["mount"] for d in data["disks"]] == ["/"] and data["disks"][0]["filesystem_type"] == "ufs"
+
+
+def test_tests_exercise_the_working_tree():
+    """uv cache-keys rebuild the non-editable install; fail loudly if it ever serves a stale copy."""
+    import device_deck
+    installed = Path(device_deck.__file__).parent
+    source = Path(__file__).parents[1] / "src/device_deck"
+    stale = [f.name for f in source.glob("*.py") if (installed / f.name).read_bytes() != f.read_bytes()]
+    assert not stale, f"Installed package is stale ({stale}); run: uv sync --extra dev --no-editable"
 
 
 def test_observation_retention_and_db_permissions(tmp_path):

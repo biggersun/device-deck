@@ -8,6 +8,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .models import Credential, Device, Inventory
 from .service import Hub
+from .store import ConflictError
 
 
 def create_app(home=None):
@@ -34,7 +35,11 @@ def create_app(home=None):
 
     @app.exception_handler(KeyError)
     async def not_found(request, error):
-        return JSONResponse({"error": "Registered device or endpoint not found"}, status_code=404)
+        return JSONResponse({"error": "Registered device, endpoint or access profile not found"}, status_code=404)
+
+    @app.exception_handler(ConflictError)
+    async def conflict(request, error):
+        return JSONResponse({"error": str(error)}, status_code=409)
 
     @app.exception_handler(RequestValidationError)
     async def invalid_payload(request, error):
@@ -68,13 +73,27 @@ def create_app(home=None):
     def events():
         return hub.store.events()
 
+    def same_id(path_id, record):
+        if path_id != record.id:
+            raise ValueError("The ID in the request body must match the URL; IDs cannot be renamed")
+
     @app.post("/api/credentials")
-    def upsert_credential(credential: Credential):
-        return hub.store.import_inventory(Inventory(credentials=[credential]), "web")
+    def create_credential(credential: Credential):
+        return hub.store.import_inventory(Inventory(credentials=[credential]), "web", mode="create")
+
+    @app.put("/api/credentials/{credential_id}")
+    def update_credential(credential_id: str, credential: Credential):
+        same_id(credential_id, credential)
+        return hub.store.import_inventory(Inventory(credentials=[credential]), "web", mode="update")
 
     @app.post("/api/devices")
-    def upsert_device(device: Device):
-        return hub.store.import_inventory(Inventory(devices=[device]), "web")
+    def create_device(device: Device):
+        return hub.store.import_inventory(Inventory(devices=[device]), "web", mode="create")
+
+    @app.put("/api/devices/{device_id}")
+    def update_device(device_id: str, device: Device):
+        same_id(device_id, device)
+        return hub.store.import_inventory(Inventory(devices=[device]), "web", mode="update")
 
     @app.get("/api/devices/{device_id}/endpoints/{endpoint_id}/plan")
     def connection_plan(device_id: str, endpoint_id: str):
